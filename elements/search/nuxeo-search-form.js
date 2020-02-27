@@ -568,6 +568,11 @@ Polymer({
      * If `true`, aggregagtes from page provider definition will not be computed.
      */
     skipAggregates: Boolean,
+
+    searches: {
+      type: Array,
+      value: [],
+    },
   },
 
   observers: [
@@ -728,6 +733,7 @@ Polymer({
       // if the view is not initialized yet, navigating to the search will trigger a search and display the results
       this.navigateTo('search', this.searchName);
     }
+    return Promise.resolve();
   },
 
   _reset() {
@@ -904,5 +910,17 @@ Polymer({
 
   _displayQuickFilters() {
     return this._quickFilters && this._quickFilters.length > 0;
+  },
+
+  _loadSavedSearch(id) {
+    if (id) {
+      (this.searches.length === 0 ? this.$['saved-searches'].get() : Promise.resolve()).then(() => {
+        this.selectedSearchIdx = this.searches.findIndex((s) => s.id === id) + 1;
+        if (this.results) {
+          // XXX rely on debouncer to update the results request with the saved search params
+          this._fetch(this.results);
+        }
+      });
+    }
   },
 });

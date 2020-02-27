@@ -552,6 +552,15 @@ Polymer({
     },
 
     routeParams: String,
+
+    searchForm: {
+      type: Object,
+      notify: true,
+    },
+
+    _routedSearch: {
+      type: Object,
+    },
   },
 
   listeners: {
@@ -657,6 +666,21 @@ Polymer({
     this.show('tasks');
   },
 
+  _getSavedSearchForm() {
+    if (!this._routedSearch) {
+      return null;
+    }
+    return this.$$(`nuxeo-search-form[provider="${this._routedSearch.properties['saved:providerName']}"]`);
+  },
+
+  _loadSavedSearch() {
+    const savedSearchForm = this._getSavedSearchForm(this._routedSearch);
+    if (savedSearchForm && savedSearchForm.getAttribute('search-name') === this.searchName) {
+      savedSearchForm._loadSavedSearch(this._routedSearch.uid);
+      this._routedSearch = null;
+    }
+  },
+
   load(page, id, path, action) {
     this.loading = true;
     this.docId = id;
@@ -666,6 +690,19 @@ Polymer({
     this.$.doc
       .get()
       .then((doc) => {
+        if (this.docId && doc.facets.includes('SavedSearch')) {
+          this._routedSearch = doc;
+          const savedSearchForm = this._getSavedSearchForm();
+          if (savedSearchForm) {
+            const name = savedSearchForm.getAttribute('search-name');
+            this.navigateTo('search', name);
+            if (!this.__searchOnLoad) {
+              this._loadSavedSearch();
+            }
+          }
+          this.loading = false;
+          return;
+        }
         if (this.docId && !doc.isVersion) {
           this.docId = '';
           this.docPath = doc.path;
@@ -845,8 +882,10 @@ Polymer({
   _updateSearch() {
     this.searchForm = this.$$(`[search-name='${this.searchName}']`);
     if (this.searchForm && this._searchOnLoad) {
-      this.searchForm._search();
-      this._searchOnLoad = false;
+      this.searchForm._search().then(() => {
+        this._loadSavedSearch();
+        this._searchOnLoad = false;
+      });
     }
   },
 
